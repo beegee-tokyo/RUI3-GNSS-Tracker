@@ -145,5 +145,6 @@ bool read_config(void);
 extern float mean_seal_level_press;
 extern time_t last_trigger;
 extern bool motion_detected;
+extern bool gnss_active;
 
 #endif

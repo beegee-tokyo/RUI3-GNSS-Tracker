@@ -36,6 +36,9 @@ uint16_t check_gnss_counter = 0;
 /** Max number of GNSS readings before giving up */
 uint16_t check_gnss_max_try = 0;
 
+/** Flag for GNSS readings active */
+bool gnss_active = false;
+
 /**
  * @brief Callback after TX is finished
  *
@@ -96,6 +99,7 @@ void gnss_handler(void *)
 		udrv_timer_stop(TIMER_1);
 		g_solution_data.addPresence(LPP_CHANNEL_SOIL_VALID, true);
 		send_packet();
+		gnss_active = false;
 	}
 	else
 	{
@@ -108,6 +112,7 @@ void gnss_handler(void *)
 			udrv_timer_stop(TIMER_1);
 			g_solution_data.addPresence(LPP_CHANNEL_SOIL_VALID, false);
 			send_packet();
+			gnss_active = false;
 		}
 	}
 	check_gnss_counter++;
@@ -420,6 +425,12 @@ void sensor_handler(void *)
 	{
 		MYLOG("SENS", "ACC triggered IRQ");
 		motion_detected = false;
+		clear_int_rak1904();
+		if (gnss_active)
+		{
+			// GNSS is already active, do nothing
+			return;
+		}
 	}
 
 	// Clear payload
@@ -434,8 +445,10 @@ void sensor_handler(void *)
 #endif
 
 	// If it is a GNSS location tracker, start the timer to aquire the location
-	if (found_sensors[GNSS_ID].found_sensor)
+	if ((found_sensors[GNSS_ID].found_sensor) && !gnss_active)
 	{
+		// Set flag for GNSS active to avoid retrigger */
+		gnss_active = true;
 		// Startup GNSS module
 		init_gnss();
 		// Start the timer

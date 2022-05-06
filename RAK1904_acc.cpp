@@ -198,9 +198,11 @@ void int_assign_rak1904(uint8_t new_irq_pin)
  */
 void int_callback_rak1904(void)
 {
-	if ((millis() - last_trigger) > 15000) // RAK_SENSOR_PERIOD / 2)
+	MYLOG("ACC", "Interrupt triggered");
+	// detachInterrupt(acc_int_pin);
+	if ((millis() - last_trigger) > (RAK_SENSOR_PERIOD / 2) && !gnss_active)
 	{
-		// MYLOG("ACC", "Interrupt triggered");
+		motion_detected = true;
 		last_trigger = millis();
 		// Read the sensors and trigger a packet
 		sensor_handler(NULL);
@@ -208,9 +210,14 @@ void int_callback_rak1904(void)
 		udrv_timer_stop(TIMER_0);
 		// Start a unified C timer in C language. This API is defined in udrv_timer.h. It will be replaced by api.system.timer.start() after story #1195 is done.
 		udrv_timer_start(TIMER_0, RAK_SENSOR_PERIOD, NULL);
-		motion_detected = true;
+	}
+	else
+	{
+		MYLOG("ACC", "GNSS still active or too less time since last trigger");
+		motion_detected = false;
 	}
 	clear_int_rak1904();
+	// attachInterrupt(acc_int_pin, int_callback_rak1904, RISING);
 }
 
 /**
