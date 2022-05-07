@@ -46,6 +46,10 @@ bool gnss_active = false;
  */
 void sendCallback(int32_t status)
 {
+	if ((found_sensors[GNSS_ID].found_sensor) && !gnss_active)
+	{
+		gnss_active = false;
+	}
 	MYLOG("TX-CB", "Packet sent finished, status %d", status);
 	digitalWrite(LED_BLUE, LOW);
 }
@@ -99,7 +103,6 @@ void gnss_handler(void *)
 		udrv_timer_stop(TIMER_1);
 		g_solution_data.addPresence(LPP_CHANNEL_SOIL_VALID, true);
 		send_packet();
-		gnss_active = false;
 	}
 	else
 	{
@@ -112,7 +115,6 @@ void gnss_handler(void *)
 			udrv_timer_stop(TIMER_1);
 			g_solution_data.addPresence(LPP_CHANNEL_SOIL_VALID, false);
 			send_packet();
-			gnss_active = false;
 		}
 	}
 	check_gnss_counter++;
@@ -428,6 +430,7 @@ void sensor_handler(void *)
 		clear_int_rak1904();
 		if (gnss_active)
 		{
+			digitalWrite(LED_BLUE, LOW);
 			// GNSS is already active, do nothing
 			return;
 		}
@@ -461,6 +464,7 @@ void sensor_handler(void *)
 	{
 		// No GNSS module, just send the packet with the sensor data
 		send_packet();
+		digitalWrite(LED_BLUE, LOW);
 	}
 }
 

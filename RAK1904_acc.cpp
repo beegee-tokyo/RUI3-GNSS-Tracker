@@ -216,6 +216,7 @@ void int_callback_rak1904(void)
 		MYLOG("ACC", "GNSS still active or too less time since last trigger");
 		motion_detected = false;
 	}
+	attachInterrupt(acc_int_pin, int_callback_rak1904, RISING);
 	clear_int_rak1904();
 	// attachInterrupt(acc_int_pin, int_callback_rak1904, RISING);
 }
