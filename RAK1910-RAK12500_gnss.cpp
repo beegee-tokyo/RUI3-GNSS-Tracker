@@ -252,8 +252,8 @@ bool poll_gnss(void)
 			else if (fix_type == 5)
 				sprintf(fix_type_str, "Time fix");
 
-			// if ((fix_type >= 3) && (my_gnss.getSIV() >= 5)) /** Fix type 3D and at least 5 satellites */
-			if (fix_type >= 3) /** Fix type 3D */
+			if ((fix_type >= 3) && (my_gnss.getSIV() >= 5)) /** Fix type 3D and at least 5 satellites */
+			// if (fix_type >= 3) /** Fix type 3D */
 			{
 				last_read_ok = true;
 				latitude = my_gnss.getLatitude();
