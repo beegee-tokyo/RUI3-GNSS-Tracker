@@ -46,10 +46,10 @@ bool gnss_active = false;
  */
 void sendCallback(int32_t status)
 {
-	if ((found_sensors[GNSS_ID].found_sensor) && !gnss_active)
-	{
-		gnss_active = false;
-	}
+	// if ((found_sensors[GNSS_ID].found_sensor) && !gnss_active)
+	// {
+	gnss_active = false;
+	// }
 	MYLOG("TX-CB", "Packet sent finished, status %d", status);
 	digitalWrite(LED_BLUE, LOW);
 }
@@ -165,6 +165,9 @@ void setup()
 
 	MYLOG("SETUP", "RAKwireless %s Node", g_dev_name);
 	MYLOG("SETUP", "------------------------------------------------------");
+
+	MYLOG("SENS", "Read voltage %.4f", api.system.bat.get());
+	MYLOG("SENS", "Calculated voltage %.4f", api.system.bat.get() * (4.4681));
 
 #ifdef _VARIANT_RAK4630_
 	/*************************************
@@ -418,7 +421,7 @@ void sensor_handler(void *)
 	// Check if the node has joined the network
 	if (!api.lorawan.njs.get())
 	{
-		MYLOG("UPLINK", "Not joined, skip sending");
+		MYLOG("SENS", "Not joined, skip sending");
 		return;
 	}
 
@@ -430,7 +433,7 @@ void sensor_handler(void *)
 		clear_int_rak1904();
 		if (gnss_active)
 		{
-			digitalWrite(LED_BLUE, LOW);
+			// digitalWrite(LED_BLUE, LOW);
 			// GNSS is already active, do nothing
 			return;
 		}
@@ -445,6 +448,11 @@ void sensor_handler(void *)
 #ifdef _VARIANT_RAK4630_
 	// Add battery voltage, works only on RAK4630/RAK4631
 	g_solution_data.addVoltage(LPP_CHANNEL_BATT, api.system.bat.get());
+#else
+	g_solution_data.addVoltage(LPP_CHANNEL_BATT, (api.system.bat.get() * (4.4681)));
+	MYLOG("SENS", "Read voltage %.4f", api.system.bat.get());
+	// MYLOG("SENS", "Calculated voltage %.2f", api.system.bat.get() * (1.13 + (4 * 0.01769)));
+	MYLOG("SENS", "Calculated voltage %.4f", api.system.bat.get() * (4.4681));
 #endif
 
 	// If it is a GNSS location tracker, start the timer to aquire the location
@@ -459,12 +467,18 @@ void sensor_handler(void *)
 		check_gnss_counter = 0;
 		// Max location aquisition time is half of send frequency
 		check_gnss_max_try = RAK_SENSOR_PERIOD / 2 / 2500;
+		// Make a first read
+		gnss_handler(NULL);
+	}
+	else if (gnss_active)
+	{
+		return;
 	}
 	else
 	{
 		// No GNSS module, just send the packet with the sensor data
 		send_packet();
-		digitalWrite(LED_BLUE, LOW);
+		// digitalWrite(LED_BLUE, LOW);
 	}
 }
 
