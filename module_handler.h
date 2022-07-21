@@ -160,6 +160,7 @@ void send_packet(void);
 bool get_at_setting(uint32_t setting_type);
 bool save_at_setting(uint32_t setting_type);
 bool init_frequency_at(void);
+bool init_status_at(void);
 
 // Sensor global definitions
 extern float mean_seal_level_press;
@@ -187,6 +188,8 @@ extern date_time_s g_date_time;
 #define LPP_6_DIGIT 1
 /** Helium Mapper format */
 #define HELIUM_MAPPER 2
+/** Field Tester format */
+#define FIELD_TESTER 3
 
 /** GNSS settings offset in flash */
 #define GNSS_OFFSET 0x00000000		// length 1 byte

@@ -13,6 +13,29 @@
 // Forward declarations
 int freq_send_handler(SERIAL_PORT port, char *cmd, stParam *param);
 int gnss_format_handler(SERIAL_PORT port, char *cmd, stParam *param);
+int status_handler(SERIAL_PORT port, char *cmd, stParam *param);
+
+#ifdef _VARIANT_RAK4630_
+#define AT_PRINTF(...)                                           \
+	do                                                           \
+	{                                                            \
+		Serial.printf(__VA_ARGS__);                              \
+		Serial.printf("\n");                                     \
+		char dbg_str[255];                                       \
+		uint16_t dbg_size = snprintf(dbg_str, 254, __VA_ARGS__); \
+		api.ble.uart.write((uint8_t *)dbg_str, dbg_size);        \
+		dbg_size = snprintf(dbg_str, 254, "\r\n");               \
+		api.ble.uart.write((uint8_t *)dbg_str, dbg_size);        \
+	} while (0)
+
+#elif defined _VARIANT_RAK3172_ || defined _VARIANT_RAK3172_SIP_
+#define AT_PRINTF(...)              \
+	do                              \
+	{                               \
+		Serial.printf(__VA_ARGS__); \
+		Serial.printf("\n");        \
+	} while (0)
+#endif
 
 /**
  * @brief GNSS format and precision
@@ -100,7 +123,7 @@ bool init_gnss_at(void)
 	bool result = false;
 
 	result = api.system.atMode.add((char *)"GNSS",
-								   (char *)"Change GNSS precision and payload format. 0 = 4digit prec., 1 = 6digit prec, 2 = Helium Mapper format",
+								   (char *)"Change GNSS precision and payload format. 0 = 4digit prec., 1 = 6digit prec, 2 = Helium Mapper format, 3 = Field Tester format",
 								   (char *)"GNSS", gnss_format_handler);
 
 	if (!get_at_setting(GNSS_OFFSET))
@@ -118,6 +141,9 @@ bool init_gnss_at(void)
 		break;
 	case HELIUM_MAPPER:
 		MYLOG("AT_CMD", "GNSS Helium Mapper data format");
+		break;
+	case FIELD_TESTER:
+		MYLOG("AT_CMD", "Field Tester data format");
 		break;
 	}
 
@@ -151,6 +177,9 @@ int gnss_format_handler(SERIAL_PORT port, char *cmd, stParam *param)
 		case HELIUM_MAPPER:
 			Serial.println("Helium Mapper data format");
 			break;
+		case FIELD_TESTER:
+			Serial.println("Field Tester data format");
+			break;
 		}
 	}
 	else if (param->argc == 1)
@@ -168,7 +197,7 @@ int gnss_format_handler(SERIAL_PORT port, char *cmd, stParam *param)
 
 		// MYLOG("AT_CMD", "Requested format %ld", gnss_format_new);
 
-		if (gnss_format_new > HELIUM_MAPPER)
+		if (gnss_format_new > FIELD_TESTER)
 		{
 			return AT_PARAM_ERROR;
 		}
@@ -186,6 +215,119 @@ int gnss_format_handler(SERIAL_PORT port, char *cmd, stParam *param)
 		return AT_PARAM_ERROR;
 	}
 
+	return AT_OK;
+}
+
+
+
+/**
+ * @brief Add custom Status AT commands
+ *
+ * @return true AT commands were added
+ * @return false AT commands couldn't be added
+ */
+bool init_status_at(void)
+{
+	return api.system.atMode.add((char *)"STATUS",
+								 (char *)"Get device information",
+								 (char *)"STATUS", status_handler);
+}
+/** Regions as text array */
+char *regions_list[] = {"EU433", "CN470", "RU864", "IN865", "EU868", "US915", "AU915", "KR920", "AS923", "AS923-2", "AS923-3", "AS923-4"};
+/** Network modes as text array*/
+char *nwm_list[] = {"P2P", "LoRaWAN", "FSK"};
+
+/**
+ * @brief Print device status over Serial
+ *
+ * @param port Serial port used
+ * @param cmd char array with the received AT command
+ * @param param char array with the received AT command parameters
+ * @return int result of command parsing
+ * 			AT_OK AT command & parameters valid
+ * 			AT_PARAM_ERROR command or parameters invalid
+ */
+int status_handler(SERIAL_PORT port, char *cmd, stParam *param)
+{
+	String value_str = "";
+	int nw_mode = 0;
+	int region_set = 0;
+	uint8_t key_eui[16] = {0}; // efadff29c77b4829acf71e1a6e76f713
+
+	if (param->argc == 1 && !strcmp(param->argv[0], "?"))
+	{
+		AT_PRINTF("Device Status:");
+		value_str = api.system.modelId.get();
+		value_str.toUpperCase();
+		AT_PRINTF("Module: %s", value_str.c_str());
+		AT_PRINTF("Version: %s", api.system.firmwareVersion.get().c_str());
+		AT_PRINTF("Send time: %d s", g_lorawan_settings.send_repeat_time / 1000);
+		nw_mode = api.lorawan.nwm.get();
+		AT_PRINTF("Network mode %s", nwm_list[nw_mode]);
+		if (nw_mode == 1)
+		{
+			AT_PRINTF("Network %s", api.lorawan.njs.get() ? "joined" : "not joined");
+			region_set = api.lorawan.band.get();
+			AT_PRINTF("Region: %d", region_set);
+			AT_PRINTF("Region: %s", regions_list[region_set]);
+			if (api.lorawan.njm.get())
+			{
+				AT_PRINTF("OTAA mode");
+				api.lorawan.deui.get(key_eui, 8);
+				AT_PRINTF("DevEUI = %02X%02X%02X%02X%02X%02X%02X%02X",
+						  key_eui[0], key_eui[1], key_eui[2], key_eui[3],
+						  key_eui[4], key_eui[5], key_eui[6], key_eui[7]);
+				api.lorawan.appeui.get(key_eui, 8);
+				AT_PRINTF("AppEUI = %02X%02X%02X%02X%02X%02X%02X%02X",
+						  key_eui[0], key_eui[1], key_eui[2], key_eui[3],
+						  key_eui[4], key_eui[5], key_eui[6], key_eui[7]);
+				api.lorawan.appkey.get(key_eui, 16);
+				AT_PRINTF("AppKey = %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
+						  key_eui[0], key_eui[1], key_eui[2], key_eui[3],
+						  key_eui[4], key_eui[5], key_eui[6], key_eui[7],
+						  key_eui[8], key_eui[9], key_eui[10], key_eui[11],
+						  key_eui[12], key_eui[13], key_eui[14], key_eui[15]);
+			}
+			else
+			{
+				AT_PRINTF("ABP mode");
+				api.lorawan.appskey.get(key_eui, 16);
+				AT_PRINTF("AppsKey = %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
+						  key_eui[0], key_eui[1], key_eui[2], key_eui[3],
+						  key_eui[4], key_eui[5], key_eui[6], key_eui[7],
+						  key_eui[8], key_eui[9], key_eui[10], key_eui[11],
+						  key_eui[12], key_eui[13], key_eui[14], key_eui[15]);
+				api.lorawan.nwkskey.get(key_eui, 16);
+				AT_PRINTF("NwsKey = %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
+						  key_eui[0], key_eui[1], key_eui[2], key_eui[3],
+						  key_eui[4], key_eui[5], key_eui[6], key_eui[7],
+						  key_eui[8], key_eui[9], key_eui[10], key_eui[11],
+						  key_eui[12], key_eui[13], key_eui[14], key_eui[15]);
+				api.lorawan.daddr.set(key_eui, 4);
+				AT_PRINTF("DevAddr = %02X%02X%02X%02X",
+						  key_eui[0], key_eui[1], key_eui[2], key_eui[3]);
+			}
+		}
+		else if (nw_mode == 0)
+		{
+			AT_PRINTF("Frequency = %d\r\n", api.lorawan.pfreq.get());
+			AT_PRINTF("SF = %d", api.lorawan.psf.get());
+			AT_PRINTF("BW = %d", api.lorawan.pbw.get());
+			AT_PRINTF("CR = %d", api.lorawan.pcr.get());
+			AT_PRINTF("Preamble length = %d", api.lorawan.ppl.get());
+			AT_PRINTF("TX power = %d", api.lorawan.ptp.get());
+		}
+		else
+		{
+			AT_PRINTF("Frequency = %d", api.lorawan.pfreq.get());
+			AT_PRINTF("Bitrate = %d", api.lorawan.pbr.get());
+			AT_PRINTF("Deviaton = %d", api.lorawan.pfdev.get());
+		}
+	}
+	else
+	{
+		return AT_PARAM_ERROR;
+	}
 	return AT_OK;
 }
 
@@ -214,7 +356,7 @@ bool get_at_setting(uint32_t setting_type)
 			gnss_format = 0;
 			save_at_setting(GNSS_OFFSET);
 		}
-		if (flash_value[0] > HELIUM_MAPPER)
+		if (flash_value[0] > FIELD_TESTER)
 		{
 			// MYLOG("AT_CMD", "No valid GNSS value found, set to default, read 0X%0X", flash_value[0]);
 			gnss_format = 0;

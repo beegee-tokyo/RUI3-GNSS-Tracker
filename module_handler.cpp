@@ -73,7 +73,7 @@ void find_modules(void)
 		error = Wire.endTransmission();
 		if (error == 0)
 		{
-			// MYLOG("SCAN", "Found sensor on I2C1 0x%02X\n", address);
+			MYLOG("SCAN", "Found sensor on I2C1 0x%02X\n", address);
 			for (uint8_t i = 0; i < sizeof(found_sensors) / sizeof(sensors_t); i++)
 			{
 				if (address == found_sensors[i].i2c_addr)
@@ -99,23 +99,23 @@ void find_modules(void)
 		return;
 	}
 
-	if (found_sensors[ACC_ID].found_sensor)
-	{
-		if (!init_rak1904())
-		{
-			found_sensors[ACC_ID].found_sensor = false;
-		}
-	}
+// 	if (found_sensors[ACC_ID].found_sensor)
+// 	{
+// 		if (!init_rak1904())
+// 		{
+// 			found_sensors[ACC_ID].found_sensor = false;
+// 		}
+// 	}
 
-#ifndef _VARIANT_RAK3172_
-	if (found_sensors[ENV_ID].found_sensor)
-	{
-		if (!init_rak1906())
-		{
-			found_sensors[ENV_ID].found_sensor = false;
-		}
-	}
-#endif
+// #ifndef _VARIANT_RAK3172_
+// 	if (found_sensors[ENV_ID].found_sensor)
+// 	{
+// 		if (!init_rak1906())
+// 		{
+// 			found_sensors[ENV_ID].found_sensor = false;
+// 		}
+// 	}
+// #endif
 
 	if (found_sensors[GNSS_ID].found_sensor)
 	{
@@ -137,21 +137,21 @@ void find_modules(void)
  */
 void announce_modules(void)
 {
-	if (found_sensors[ACC_ID].found_sensor)
-	{
-		Serial.println("+EVT:RAK1904 OK");
-		// Reading sensor data
-		read_rak1904();
-	}
+// 	if (found_sensors[ACC_ID].found_sensor)
+// 	{
+// 		Serial.println("+EVT:RAK1904 OK");
+// 		// Reading sensor data
+// 		read_rak1904();
+// 	}
 
-#ifndef _VARIANT_RAK3172_
-	if (found_sensors[ENV_ID].found_sensor)
-	{
-		Serial.println("+EVT:RAK1906 OK");
-		// Reading sensor data
-		read_rak1906();
-	}
-#endif
+// #ifndef _VARIANT_RAK3172_
+// 	if (found_sensors[ENV_ID].found_sensor)
+// 	{
+// 		Serial.println("+EVT:RAK1906 OK");
+// 		// Reading sensor data
+// 		read_rak1906();
+// 	}
+// #endif
 
 	if (found_sensors[GNSS_ID].found_sensor)
 	{
@@ -167,17 +167,17 @@ void announce_modules(void)
  */
 void get_sensor_values(void)
 {
-	if (found_sensors[ACC_ID].found_sensor)
-	{
-		// Read sensor data
-		read_rak1904();
-	}
+// 	if (found_sensors[ACC_ID].found_sensor)
+// 	{
+// 		// Read sensor data
+// 		read_rak1904();
+// 	}
 
-#ifndef _VARIANT_RAK3172_
-	if (found_sensors[ENV_ID].found_sensor)
-	{
-		// Reading sensor data
-		read_rak1906();
-	}
-#endif
+// #ifndef _VARIANT_RAK3172_
+// 	if (found_sensors[ENV_ID].found_sensor)
+// 	{
+// 		// Reading sensor data
+// 		read_rak1906();
+// 	}
+// #endif
 }

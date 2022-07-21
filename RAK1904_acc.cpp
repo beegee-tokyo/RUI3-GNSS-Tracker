@@ -21,6 +21,17 @@ Adafruit_LIS3DH acc_sensor(&Wire);
 /** For internal usage */
 TwoWire *usedWire;
 
+//******************************************************************//
+// RAK1904 INT1_PIN
+//******************************************************************//
+// Slot A      WB_IO1
+// Slot B      WB_IO2 ( not recommended, pin conflict with IO2)
+// Slot C      WB_IO3
+// Slot D      WB_IO5
+// Slot E      WB_IO4
+// Slot F      WB_IO6
+//******************************************************************//
+
 /** Interrupt pin, depends on slot */
 uint8_t acc_int_pin = WB_IO3;
 
@@ -206,7 +217,7 @@ void read_rak1904(void)
  */
 void int_callback_rak1904(void)
 {
-	// MYLOG("ACC", "Interrupt triggered");
+	MYLOG("ACC", "Interrupt triggered");
 	// detachInterrupt(acc_int_pin);
 	if ((millis() - last_trigger) > (g_lorawan_settings.send_repeat_time / 2) && !gnss_active)
 	{

@@ -55,15 +55,15 @@ bool init_gnss(void)
 		if (found_sensors[GNSS_ID].found_sensor)
 		{
 			Wire.begin();
-			if (!my_gnss.begin(Wire))
+			if (!my_gnss.begin()) // Wire,0x42
 			{
-				// MYLOG("GNSS", "Could not initialize RAK12500 on Wire");
+				MYLOG("GNSS", "Could not initialize RAK12500 on Wire");
 				i2c_gnss = false;
 			}
 			else
 			{
 				i2c_gnss = true;
-				// MYLOG("GNSS", "RAK12500 found on I2C");
+				MYLOG("GNSS", "RAK12500 found on I2C");
 				i2c_gnss = true;
 
 				my_gnss.setI2COutput(COM_TYPE_UBX); // Set the I2C port to output UBX only (turn off NMEA noise)
@@ -73,7 +73,7 @@ bool init_gnss(void)
 
 				my_gnss.setNavigationFrequency(1);
 
-				MYLOG("GNSS", "Rate %d",my_gnss.getNavigationFrequency());
+				MYLOG("GNSS", "Rate %d", my_gnss.getNavigationFrequency());
 				return true;
 			}
 		}
@@ -104,7 +104,8 @@ bool poll_gnss(void)
 	int64_t latitude = 0;
 	int64_t longitude = 0;
 	int32_t altitude = 0;
-	int32_t accuracy = 0;
+	float accuracy = 0;
+	uint8_t satellites = 0;
 
 	time_t check_limit = g_lorawan_settings.send_repeat_time / 2;
 
@@ -116,22 +117,43 @@ bool poll_gnss(void)
 		if (my_gnss.getGnssFixOk())
 		{
 			byte fix_type = my_gnss.getFixType(); // Get the fix type
-			// char fix_type_str[32] = {0};
-			// if (fix_type == 0)
-			// 	sprintf(fix_type_str, "No Fix");
-			// else if (fix_type == 1)
-			// 	sprintf(fix_type_str, "Dead reckoning");
-			// else if (fix_type == 2)
-			// 	sprintf(fix_type_str, "Fix type 2D");
-			// else if (fix_type == 3)
-			// 	sprintf(fix_type_str, "Fix type 3D");
-			// else if (fix_type == 4)
-			// 	sprintf(fix_type_str, "GNSS fix");
-			// else if (fix_type == 5)
-			// 	sprintf(fix_type_str, "Time fix");
+			char fix_type_str[32] = {0};
+			if (fix_type == 0)
+				sprintf(fix_type_str, "No Fix");
+			else if (fix_type == 1)
+				sprintf(fix_type_str, "Dead reckoning");
+			else if (fix_type == 2)
+				sprintf(fix_type_str, "Fix type 2D");
+			else if (fix_type == 3)
+				sprintf(fix_type_str, "Fix type 3D");
+			else if (fix_type == 4)
+				sprintf(fix_type_str, "GNSS fix");
+			else if (fix_type == 5)
+				sprintf(fix_type_str, "Time fix");
 
-			if ((fix_type >= 3) && (my_gnss.getSIV() >= 5)) /** Fix type 3D and at least 5 satellites */
-															// if (fix_type >= 3) /** Fix type 3D */
+			accuracy = (float)(my_gnss.getHorizontalDOP() / 100.0);
+			satellites = my_gnss.getSIV();
+			MYLOG("GNSS", "HDOP: %.2f ", accuracy);
+			MYLOG("GNSS", "SIV: %d ", satellites);
+
+			bool valid_location = false;
+			if (gnss_format == FIELD_TESTER)
+			{
+				if ((fix_type >= 3) && (satellites >= 5) && (accuracy <= 2.00)) /** Fix type 3D,at least 5 satellites & HDOP better than 2 */
+				{
+					valid_location = true;
+				}
+			}
+			else
+			{
+				if (fix_type >= 3) /** Fix type 3D */
+				{
+					valid_location = true;
+				}
+			}
+
+			// if ((fix_type >= 3) && (my_gnss.getSIV() >= 5)) /** Fix type 3D and at least 5 satellites */
+			if (valid_location)
 			{
 				last_read_ok = true;
 				latitude = my_gnss.getLatitude();
@@ -139,10 +161,10 @@ bool poll_gnss(void)
 				altitude = my_gnss.getAltitude();
 				accuracy = my_gnss.getPositionDOP();
 
-				// MYLOG("GNSS", "Fixtype: %d %s", my_gnss.getFixType(), fix_type_str);
-				// MYLOG("GNSS", "Lat: %.4f Lon: %.4f", latitude / 10000000.0, longitude / 10000000.0);
-				// MYLOG("GNSS", "Alt: %.2f", altitude / 1000.0);
-				// MYLOG("GNSS", "Acy: %.2f ", accuracy / 100.0);
+				MYLOG("GNSS", "Fixtype: %d %s", my_gnss.getFixType(), fix_type_str);
+				MYLOG("GNSS", "Lat: %.4f Lon: %.4f", latitude / 10000000.0, longitude / 10000000.0);
+				MYLOG("GNSS", "Alt: %.2f", altitude / 1000.0);
+				MYLOG("GNSS", "Acy: %.2f ", accuracy / 100.0);
 
 				if ((my_gnss.getTimeValid()) && (my_gnss.getDateValid()))
 				{
@@ -176,6 +198,9 @@ bool poll_gnss(void)
 		case HELIUM_MAPPER:
 			g_solution_data.addGNSS_H(latitude, longitude, altitude, accuracy, api.system.bat.get());
 			break;
+		case FIELD_TESTER:
+			g_solution_data.addGNSS_T(latitude, longitude, altitude, accuracy, satellites);
+			break;
 		}
 
 		// if (found_sensors[OLED_ID].found_sensor)
@@ -195,6 +220,7 @@ bool poll_gnss(void)
 		longitude = 1210069140;
 		altitude = 35000;
 		accuracy = 100;
+		satellites = 5;
 
 		switch (gnss_format)
 		{
@@ -206,6 +232,9 @@ bool poll_gnss(void)
 			break;
 		case HELIUM_MAPPER:
 			g_solution_data.addGNSS_H(latitude, longitude, altitude, accuracy, api.system.bat.get());
+			break;
+		case FIELD_TESTER:
+			g_solution_data.addGNSS_T(latitude, longitude, altitude, accuracy, satellites);
 			break;
 		}
 		last_read_ok = true;

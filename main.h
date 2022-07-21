@@ -108,14 +108,14 @@ struct s_lorawan_settings
 	// // Data port to send data
 	// uint8_t app_port = 2;
 	// Flag to enable confirmed messages
-	bool confirmed_msg_enabled = false;
+	bool confirmed_msg_enabled = true;
 #ifdef _VARIANT_RAK3172_
 	// Fixed LoRaWAN lorawan_region
 	uint8_t lora_region = RAK_REGION_AS923_3;
 #endif
 #ifdef _VARIANT_RAK4630_
 	// Fixed LoRaWAN lorawan_region
-	uint8_t lora_region = RAK_REGION_EU868;
+	uint8_t lora_region = RAK_REGION_AS923_3; // RAK_REGION_EU868;
 #endif
 	// // Flag for LoRaWAN or LoRa P2P
 	// bool lorawan_enable = true;

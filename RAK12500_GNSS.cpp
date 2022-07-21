@@ -920,7 +920,10 @@ boolean RAK12500_GNSS::isConnected(uint16_t maxWait)
   {
     _i2cPort->beginTransmission((uint8_t)_gpsI2Caddress);
     if (_i2cPort->endTransmission() != 0)
-      return false; // Sensor did not ack
+      {
+		  Serial.println("NO ACK");
+		  return false; // Sensor did not ack
+		  }
   }
 
   // Query navigation rate to see whether we get a meaningful response
@@ -936,7 +939,10 @@ boolean RAK12500_GNSS::isConnected(uint16_t maxWait)
   if ((result == SFE_UBLOX_STATUS_DATA_RECEIVED) || (result == SFE_UBLOX_STATUS_DATA_OVERWRITTEN))
     return (true);
   else
-    return (false);
+    {
+		Serial.println("Reading Navigation Rate failed");
+		return (false);
+		}
 }
 
 // Given a message, calc and store the two byte "8-Bit Fletcher" checksum over the entirety of the message
